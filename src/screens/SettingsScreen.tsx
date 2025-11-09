@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { AuthContext } from '../context/AuthContext';
 
 const SettingsScreen = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -11,6 +12,7 @@ const SettingsScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [language, setLanguage] = useState('he');
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { dispatch } = useContext(AuthContext);
 
   useEffect(() => {
     AsyncStorage.getItem('settings').then((data) => {
@@ -32,6 +34,12 @@ const SettingsScreen = () => {
       { text: 'ביטול', style: 'cancel' },
       { text: 'איפוס', style: 'destructive', onPress: () => AsyncStorage.removeItem('conversations') },
     ]);
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('user');
+    dispatch({ type: 'LOGOUT' });
   };
 
   return (
@@ -57,6 +65,9 @@ const SettingsScreen = () => {
       </TouchableOpacity>
       <TouchableOpacity style={styles.aboutBtn} onPress={() => navigation.navigate('About')}>
         <Text style={styles.aboutText}>אודות</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Text style={styles.logoutText}>התנתק</Text>
       </TouchableOpacity>
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalBg}>
@@ -88,6 +99,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10, marginBottom: 16 },
   saveBtn: { backgroundColor: '#2563EB', borderRadius: 10, padding: 12 },
   saveText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  logoutBtn: { marginTop: 20, backgroundColor: '#EF4444', borderRadius: 20, padding: 14 },
+  logoutText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
 });
 
 export default SettingsScreen;

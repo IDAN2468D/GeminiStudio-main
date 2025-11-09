@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import { NavigationContainer, DefaultTheme, DarkTheme, NavigatorScreenParams } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -14,6 +15,8 @@ import ImageGenScreen from '../screens/ImageGenScreen';
 import StoryGeneratorScreen from '../screens/StoryGeneratorScreen';
 import ArtsAndCultureScreen from '../screens/ArtsAndCultureScreen';
 import WebDesignerContentScreen from '../screens/WebDesignerContentScreen';
+import LoginScreen from '../screens/Auth/LoginScreen';
+import RegisterScreen from '../screens/Auth/RegisterScreen';
 
 // Define types for the bottom tab navigator
 export type RootTabParamList = {
@@ -31,6 +34,8 @@ export type RootStackParamList = {
   Settings: undefined;
   About: undefined;
   WebDesignerContent: { url: string }; // Add new route for Web Designer Content
+  Login: undefined; // Add Login screen to RootStackParamList
+  Register: undefined; // Add Register screen to RootStackParamList
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -92,13 +97,24 @@ const BottomTabNavigator = () => {
 
 const AppNavigator = () => {
   const scheme = useColorScheme();
+  const { state } = useContext(AuthContext);
+
   return (
     <NavigationContainer theme={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack.Navigator initialRouteName="RootTab" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="RootTab" component={BottomTabNavigator} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="About" component={AboutScreen} />
-        <Stack.Screen name="WebDesignerContent" component={WebDesignerContentScreen} />
+      <Stack.Navigator  screenOptions={{ headerShown: false }}>
+        {state.user ? (
+          <>
+            <Stack.Screen name="RootTab" component={BottomTabNavigator} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="WebDesignerContent" component={WebDesignerContentScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
