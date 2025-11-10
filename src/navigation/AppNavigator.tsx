@@ -17,6 +17,7 @@ import ArtsAndCultureScreen from '../screens/ArtsAndCultureScreen';
 import WebDesignerContentScreen from '../screens/WebDesignerContentScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
+import OnboardingScreen from '../screens/Auth/OnboardingScreen';
 
 // Define types for the bottom tab navigator
 export type RootTabParamList = {
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   WebDesignerContent: { url: string }; // Add new route for Web Designer Content
   Login: undefined; // Add Login screen to RootStackParamList
   Register: undefined; // Add Register screen to RootStackParamList
+  Onboarding: undefined; // Add Onboarding screen to RootStackParamList
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -101,7 +103,7 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack.Navigator  screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName='Onboarding'  screenOptions={{ headerShown: false }}>
         {state.user ? (
           <>
             <Stack.Screen name="RootTab" component={BottomTabNavigator} />
@@ -113,6 +115,7 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           </>
         )}
       </Stack.Navigator>
