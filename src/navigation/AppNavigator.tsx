@@ -18,6 +18,8 @@ import WebDesignerContentScreen from '../screens/WebDesignerContentScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import OnboardingScreen from '../screens/Auth/OnboardingScreen';
+import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
 
 // Define types for the bottom tab navigator
 export type RootTabParamList = {
@@ -38,6 +40,8 @@ export type RootStackParamList = {
   Login: undefined; // Add Login screen to RootStackParamList
   Register: undefined; // Add Register screen to RootStackParamList
   Onboarding: undefined; // Add Onboarding screen to RootStackParamList
+  ForgotPassword: undefined; // Add ForgotPassword screen to RootStackParamList
+  ResetPassword: undefined; // Add ResetPassword screen to RootStackParamList
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -97,12 +101,21 @@ const BottomTabNavigator = () => {
   );
 };
 
+const linking = {
+  prefixes: ['https://test-q3enl6kqw6542vwr.mlsender.net', 'myapp://'],
+  config: {
+    screens: {
+      ResetPassword: 'api/users/resetpassword/:token',
+    },
+  },
+};
+
 const AppNavigator = () => {
   const scheme = useColorScheme();
   const { state } = useContext(AuthContext);
 
   return (
-    <NavigationContainer theme={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavigationContainer linking={linking} theme={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack.Navigator initialRouteName='Onboarding'  screenOptions={{ headerShown: false }}>
         {state.user ? (
           <>
@@ -115,7 +128,9 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           </>
         )}
       </Stack.Navigator>

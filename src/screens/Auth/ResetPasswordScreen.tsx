@@ -1,48 +1,53 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Animated, StyleSheet, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api/api';
-import { useNavigation } from '@react-navigation/native';
-import { AuthContext } from '../../context/AuthContext';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-export default function LoginScreen() {
+export default function ResetPasswordScreen() {
   const navigation = useNavigation<any>();
-  const { dispatch } = useContext(AuthContext);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [email, setEmail] = useState('');
+  const route = useRoute<any>();
+  const { token } = route.params || {}; // Ensure token is safely accessed
+
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!token) {
+      Alert.alert('Error', 'Password reset token is missing. Please try the forgot password process again.');
+      navigation.navigate('Login'); // Navigate back to login or forgot password
+      return;
+    }
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 1200,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [token, fadeAnim]);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const handleResetPassword = async () => {
+    if (!password || !confirmPassword) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
-    setLoading(true);
-    try {
-      const response = await api.post('/users/login', { email, password });
-      const token = response.data?.token;
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
 
-      if (token) {
-        await AsyncStorage.setItem('token', token);
-        dispatch({ type: 'LOGIN', payload: { user: { email }, token } });
-        Alert.alert('Success', 'Login successful');
-      } else {
-        Alert.alert('Error', 'Invalid response from server');
-      }
+    setLoading(true);
+    console.log('Resetting password with:', { token, password, confirmPassword });
+    try {
+      const response = await api.post('/users/resetpassword', { token, password });
+      Alert.alert('Success', response.data.message || 'Password has been reset successfully.');
+      navigation.navigate('Login');
     } catch (error: any) {
-      Alert.alert('Login failed', error.response?.data?.message || 'Server error');
+      console.error('Reset password error:', error.response ? error.response.data : error.message);
+      Alert.alert('Error', error.response ? error.response.data.error : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -52,15 +57,8 @@ export default function LoginScreen() {
     <LinearGradient colors={['#0f2027', '#203a43', '#2c5364']} style={styles.container}>
       <Animated.View style={[styles.formContainer, { opacity: fadeAnim }]}>
         <Icon name="robot-outline" size={70} color="#00ffff" style={styles.icon} />
-        <Text style={styles.title}>Gemini Studio</Text>
+        <Text style={styles.title}>Reset Password</Text>
 
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#ccc"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-        />
         <View style={styles.passwordContainer}>
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
@@ -69,7 +67,7 @@ export default function LoginScreen() {
             <Icon name={showPassword ? 'eye-off' : 'eye'} size={24} color="#ccc" />
           </TouchableOpacity>
           <TextInput
-            placeholder="Password"
+            placeholder="New Password"
             placeholderTextColor="#ccc"
             secureTextEntry={!showPassword}
             value={password}
@@ -78,16 +76,29 @@ export default function LoginScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Sign In'}</Text>
+        <View style={styles.passwordContainer}>
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeIcon}
+          >
+            <Icon name={showPassword ? 'eye-off' : 'eye'} size={24} color="#ccc" />
+          </TouchableOpacity>
+          <TextInput
+            placeholder="Confirm New Password"
+            placeholderTextColor="#ccc"
+            secureTextEntry={!showPassword}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            style={styles.passwordInput}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.button} onPress={handleResetPassword} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Resetting...' : 'Reset Password'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.linkText}>Don't have an account? Register</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.linkText}>Back to Login</Text>
         </TouchableOpacity>
       </Animated.View>
     </LinearGradient>
@@ -117,7 +128,6 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#000', fontSize: 18, fontWeight: 'bold' },
   linkText: { color: '#00ffff', marginTop: 15 },
-  forgotPasswordText: { color: '#00ffff', marginTop: 10, fontSize: 14 },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
