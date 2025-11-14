@@ -85,7 +85,7 @@ const linking = {
   ],
   config: {
     screens: {
-      ResetPassword: 'api/users/resetpassword/:token',
+      ResetPassword: 'resetpassword/:token',
     },
   },
 };
@@ -146,6 +146,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           </>
         )}
       </Stack.Navigator>
