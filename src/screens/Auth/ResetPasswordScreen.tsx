@@ -1,34 +1,55 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Animated, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Animated,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import api from './api/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ResetPasswordScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { token } = route.params || {}; // Ensure token is safely accessed
 
+  const [token, setToken] = useState<string | null>(route.params?.token);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // 🧩 הפעלת אנימציה וטעינת token
   useEffect(() => {
-    if (!token) {
-      Alert.alert('Error', 'Password reset token is missing. Please try the forgot password process again.');
-      navigation.navigate('Login'); // Navigate back to login or forgot password
-      return;
-    }
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 1200,
+      duration: 600,
       useNativeDriver: true,
     }).start();
-  }, [token, fadeAnim]);
 
+    const fetchToken = async () => {
+      let currentToken = route.params?.token;
+      if (!currentToken) {
+        currentToken = await AsyncStorage.getItem('reset_token');
+      }
+      if (!currentToken) {
+        Alert.alert('Error', 'Reset token missing.');
+        navigation.navigate('Login');
+      } else {
+        setToken(currentToken);
+      }
+    };
+    fetchToken();
+  }, []);
+
+  // 🧩 שליחת בקשת איפוס סיסמה
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {
       Alert.alert('Error', 'Please fill all fields');
@@ -38,16 +59,34 @@ export default function ResetPasswordScreen() {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
+    if (!token) {
+      Alert.alert('Error', 'Missing reset token.');
+      return;
+    }
 
     setLoading(true);
-    console.log('Resetting password with:', { token, password, confirmPassword });
+    console.log('Resetting password with:', { token, password });
+
     try {
-      const response = await api.post('/users/resetpassword', { token, password });
+      // 🔗 אם השרת שלך מצפה ל־req.params.token (ולא ב־body)
+      const response = await api.post(`/users/resetpassword/${token}`, { password });
+
       Alert.alert('Success', response.data.message || 'Password has been reset successfully.');
-      navigation.navigate('Login');
+
+      await AsyncStorage.removeItem('reset_token');
+
+      // אנימציה לפני מעבר למסך ההתחברות
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => navigation.navigate('Login'));
     } catch (error: any) {
       console.error('Reset password error:', error.response ? error.response.data : error.message);
-      Alert.alert('Error', error.response ? error.response.data.error : 'Something went wrong. Please try again.');
+      Alert.alert(
+        'Error',
+        error.response?.data?.error || 'Something went wrong. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -93,8 +132,14 @@ export default function ResetPasswordScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleResetPassword} disabled={loading}>
-          <Text style={styles.buttonText}>{loading ? 'Resetting...' : 'Reset Password'}</Text>
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          onPress={handleResetPassword}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -110,14 +155,6 @@ const styles = StyleSheet.create({
   formContainer: { alignItems: 'center', paddingHorizontal: 30 },
   icon: { marginBottom: 15 },
   title: { fontSize: 32, color: '#00ffff', marginBottom: 30, fontWeight: 'bold' },
-  input: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    color: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-  },
   button: {
     backgroundColor: '#00ffff',
     width: '100%',

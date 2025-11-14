@@ -39,6 +39,9 @@
             <data android:scheme="https"
                   android:host="test-q3enl6kqw6542vwr.mlsender.net"
                   android:pathPrefix="/api/users/resetpassword" />
+            <data android:scheme="https"
+                  android:host="shopappbackend-nl1h.onrender.com"
+                  android:pathPrefix="/api/users/resetpassword" />
         </intent-filter>
       </activity>
     </application>

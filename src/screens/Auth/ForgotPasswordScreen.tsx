@@ -29,7 +29,11 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       const response = await api.post('/users/forgotpassword', { email });
-      Alert.alert('Success', response.data.message || 'Password reset link sent to your email.');
+      Alert.alert(
+        'Success',
+        response.data.message || 'A password reset link has been sent to your email. Please check your inbox.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
       setEmail('');
     } catch (error: any) {
       Alert.alert('Error', error.response ? error.response.data.message : 'Something went wrong. Please try again.');
