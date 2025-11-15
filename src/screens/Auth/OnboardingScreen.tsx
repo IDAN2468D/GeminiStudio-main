@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useContext } from 'react'; // Add useContext
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import Svg, { Circle, Rect, Path } from 'react-native-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { AuthContext } from '../../context/AuthContext'; // Import AuthContext
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -17,6 +19,7 @@ type RootStackParamList = {
   Onboarding: undefined; // Assuming Onboarding screen takes no parameters
   Login: undefined;      // Login screen takes no parameters
   Register: undefined;   // Register screen takes no parameters
+  RootTab: undefined; // Add RootTab for authenticated users
   // Add other screens in your app's navigation stack here
 };
 
@@ -27,6 +30,7 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { dispatch } = useContext(AuthContext); // Get dispatch from AuthContext
 
   // אנימציה - נענוע הראש של הרובוט
   useEffect(() => {
@@ -88,6 +92,24 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
       ])
     ).start();
   }, []);
+
+  // New useEffect to check for existing token and auto-login
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const user = await AsyncStorage.getItem('user'); // Assuming user data is also stored
+        if (token && user) {
+          dispatch({ type: 'LOGIN', payload: { user: JSON.parse(user), token } });
+          // Navigate to the main authenticated part of the app
+          navigation.replace('RootTab');
+        }
+      } catch (error) {
+        console.error('Failed to check login status:', error);
+      }
+    };
+    checkLoginStatus();
+  }, [dispatch, navigation]); // Dependencies for useEffect
 
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [-1, 1],

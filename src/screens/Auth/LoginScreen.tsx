@@ -37,7 +37,7 @@ export default function LoginScreen() {
       if (token) {
         await AsyncStorage.setItem('token', token);
         dispatch({ type: 'LOGIN', payload: { user: { email }, token } });
-        Alert.alert('Success', 'Login successful');
+        navigation.navigate('RootTab'); // Navigate to the main app after successful login
       } else {
         Alert.alert('Error', 'Invalid response from server');
       }

@@ -1,22 +1,31 @@
-import React, { useContext, useEffect } from 'react';
-import { Linking, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext } from 'react';
 import {
   NavigationContainer,
   DefaultTheme,
   DarkTheme,
   NavigationContainerRef,
+  NavigatorScreenParams, // Import NavigatorScreenParams
 } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useColorScheme } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { navigationRef } from '../utils/navigationRef';
+import { useDeepLinkHandler } from '../hooks/useDeepLinkHandler';
+
+// Define BottomTabParamList
+export type BottomTabParamList = {
+  Home: undefined;
+  Chat: undefined;
+  ImageGen: undefined;
+  LiveAudio: undefined;
+  History: undefined;
+};
 
 // ✅ הגדרת סוגי המסכים (כולל token אופציונלי)
 export type RootStackParamList = {
-  RootTab: undefined;
+  RootTab: NavigatorScreenParams<BottomTabParamList>; // Correctly type RootTab
   Settings: undefined;
   About: undefined;
   WebDesignerContent: { url: string };
@@ -27,6 +36,12 @@ export type RootStackParamList = {
   ResetPassword: { token?: string }; // <-- token אופציונלי כדי למנוע שגיאת TypeScript
 };
 
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
+
 // screens imports
 import HomeScreen from '../screens/HomeScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -35,7 +50,6 @@ import SettingsScreen from '../screens/SettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import ImageGenScreen from '../screens/ImageGenScreen';
 import StoryGeneratorScreen from '../screens/StoryGeneratorScreen';
-import ArtsAndCultureScreen from '../screens/ArtsAndCultureScreen';
 import WebDesignerContentScreen from '../screens/WebDesignerContentScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
@@ -59,7 +73,6 @@ const BottomTabNavigator = () => (
           case 'ImageGen': iconName = focused ? 'image' : 'image-outline'; break;
           case 'LiveAudio': iconName = focused ? 'mic' : 'mic-outline'; break;
           case 'History': iconName = focused ? 'time' : 'time-outline'; break;
-          case 'ArtsAndCulture': iconName = focused ? 'easel' : 'easel-outline'; break;
         }
         return <Ionicons name={iconName} size={size} color={color} />;
       },
@@ -72,7 +85,6 @@ const BottomTabNavigator = () => (
     <Tab.Screen name="ImageGen" component={ImageGenScreen} />
     <Tab.Screen name="LiveAudio" component={StoryGeneratorScreen} />
     <Tab.Screen name="History" component={HistoryScreen} />
-    <Tab.Screen name="ArtsAndCulture" component={ArtsAndCultureScreen} />
   </Tab.Navigator>
 );
 
@@ -91,64 +103,28 @@ const linking = {
 };
 
 const AppNavigator = () => {
-  const scheme = useColorScheme();
   const { state } = useContext(AuthContext);
+  const { isDarkMode } = useTheme();
+  const theme = isDarkMode ? DarkTheme : DefaultTheme;
 
-  // 🧩 מאזין לפתיחת קישורים מהאימייל
-  useEffect(() => {
-    const handleDeepLink = async (event: { url: string }) => {
-      const url = event.url;
-      console.log('📩 Deep Link Received:', url);
-
-      // תואם לשני סוגי לינקים (עם ?token= או /token)
-      const tokenMatch =
-        url.match(/token=([^&]+)/) || url.match(/api\/users\/resetpassword\/([A-Za-z0-9]+)/);
-
-      if (tokenMatch) {
-        const token = tokenMatch[1];
-        console.log('🔑 Token from link:', token);
-        await AsyncStorage.setItem('reset_token', token);
-
-        // ✅ משתמשים ב-type הבטוח
-        (navigationRef.current as NavigationContainerRef<RootStackParamList>)?.navigate('ResetPassword', { token });
-      } else {
-        Alert.alert('Error', 'Invalid or missing reset link.');
-      }
-    };
-
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-
-    // בודק אם האפליקציה נפתחה מהקישור בתחילת ההפעלה
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink({ url });
-    });
-
-    return () => subscription.remove();
-  }, []);
+  useDeepLinkHandler(navigationRef as unknown as React.RefObject<NavigationContainerRef<RootStackParamList>>);
 
   return (
     <NavigationContainer
       ref={navigationRef}
       linking={linking}
-      theme={scheme === 'dark' ? DarkTheme : DefaultTheme}
+      theme={theme}
     >
-      <Stack.Navigator initialRouteName="Onboarding" screenOptions={{ headerShown: false }}>
-        {state.user ? (
-          <>
-            <Stack.Screen name="RootTab" component={BottomTabNavigator} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-            <Stack.Screen name="WebDesignerContent" component={WebDesignerContentScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-          </>
-        )}
+      <Stack.Navigator initialRouteName="RootTab" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="RootTab" component={BottomTabNavigator} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="WebDesignerContent" component={WebDesignerContentScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

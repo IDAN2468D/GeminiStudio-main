@@ -40,6 +40,7 @@ const SettingsScreen = () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
     dispatch({ type: 'LOGOUT' });
+    navigation.navigate('Onboarding');
   };
 
   return (

@@ -12,9 +12,7 @@ const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
 
   const navigateToChat = () => {
-    navigation.navigate('RootTab', {
-      screen: 'Chat'
-    });
+    navigation.navigate('RootTab', { screen: 'Chat' });
   };
 
   const navigateToSettings = () => {
