@@ -1,47 +1,44 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '@env';
 
-let genAI: GoogleGenerativeAI | null = null;
-let model: any = null;
+export let genAI: GoogleGenerativeAI | null = null;
+export let textModel: any = null;
+export let imageGenModel: any = null;
 
-const initializeGemini = () => {
+/**
+ * Initialize Gemini API models
+ */
+export const initializeGemini = () => {
   if (!GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
 
   if (!genAI) {
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    // Using gemini-pro for text and gemini-pro-vision for images when needed
-    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    // Text model
+    textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    // Image model
+    imageGenModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+
     console.log('Gemini API initialized successfully');
   }
 };
 
-export const transcribeAudio = async (audioPath: string): Promise<string> => {
-  try {
-    initializeGemini();
-    // Note: Currently, Gemini API doesn't support direct audio transcription
-    // We can use other Google APIs for this in the future
-    throw new Error('שירות התמלול עדיין לא זמין. בקרוב נוסיף תמיכה בשירותי תמלול של Google.');
-  } catch (error) {
-    console.error('Error transcribing audio:', error);
-    throw error;
-  }
-};
-
+/**
+ * Generate a text response using Gemini
+ */
 export const generateResponse = async (text: string): Promise<string> => {
   try {
     initializeGemini();
-    
-    if (!model) {
-      throw new Error('Gemini model not initialized');
-    }
+    if (!textModel) throw new Error('Gemini text model not initialized');
 
-    console.log('Sending request to Gemini API...');
-    const result = await model.generateContent(text);
+    console.log('Sending text generation request...');
+    const result = await textModel.generateContent({ prompt: text });
     console.log('Received response from Gemini API');
-    const response = await result.response;
-    return response.text();
+
+    return result.response[0].outputText || '';
   } catch (error: any) {
     console.error('Error generating response:', error);
     if (error.message?.includes('API key')) {
@@ -51,7 +48,46 @@ export const generateResponse = async (text: string): Promise<string> => {
   }
 };
 
-// Define the Session type
+/**
+ * Generate an image using Gemini
+ */
+export const generateImage = async (prompt: string, size = '1024x1024'): Promise<string> => {
+  try {
+    initializeGemini();
+    if (!imageGenModel) throw new Error('Gemini image model not initialized');
+
+    console.log('Sending image generation request...');
+    const result = await imageGenModel.images.generate({ prompt, size });
+    console.log('Received image from Gemini API');
+
+    return result[0].url;
+  } catch (error: any) {
+    if (error.message?.includes('Quota exceeded') || error.message?.includes('429')) {
+      throw new Error(
+        'חרגת מהמכסה החינמית ל-Gemini API. נא לבדוק את המנוי/קרדיטים שלך: https://ai.dev/usage?tab=rate-limit'
+      );
+    }
+    console.error('Error generating image:', error);
+    throw error;
+  }
+};
+
+/**
+ * Placeholder for audio transcription (not yet supported)
+ */
+export const transcribeAudio = async (): Promise<string> => {
+  try {
+    initializeGemini();
+    throw new Error('שירות התמלול עדיין לא זמין. בקרוב נוסיף תמיכה בשירותי תמלול של Google.');
+  } catch (error) {
+    console.error('Error transcribing audio:', error);
+    throw error;
+  }
+};
+
+/**
+ * Define a live session type (not yet supported)
+ */
 export interface Session {
   start: () => Promise<void>;
   stop: () => Promise<void>;
@@ -59,14 +95,15 @@ export interface Session {
   sendMessage: (message: string) => Promise<void>;
 }
 
+/**
+ * Placeholder for live session (not yet supported)
+ */
 export const startLiveSession = (): Session => {
   try {
     initializeGemini();
-    // Note: Currently, Gemini API doesn't support live audio sessions
-    // We can implement this when the feature becomes available
     throw new Error('שיחות שמע חיות עדיין לא נתמכות. בקרוב נוסיף תמיכה בשיחות חיות.');
   } catch (error) {
     console.error('Error starting live session:', error);
     throw error;
   }
-}; 
+};

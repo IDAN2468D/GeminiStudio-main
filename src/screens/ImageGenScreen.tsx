@@ -8,7 +8,6 @@ import { useImageGenerator } from '../hooks/useImageGenerator';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../context/ThemeContext';
 
-const API_KEY = process.env.GEMINI_API_KEY || '';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ImageGenScreen: React.FC = () => {
@@ -24,7 +23,7 @@ const ImageGenScreen: React.FC = () => {
   const {
     generatedImages, loading, error,
     selectedFilter, setSelectedFilter, generateImages, shareImage, applyFilterStyle
-  } = useImageGenerator(API_KEY);
+  } = useImageGenerator();
 
   const selectImage = () => {
     launchImageLibrary({ mediaType: 'photo' }, (response) => {

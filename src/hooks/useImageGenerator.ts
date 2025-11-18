@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Alert, Share } from 'react-native';
 import RNFS from 'react-native-fs';
 import { saveToHistory } from '../utils/storage';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { initializeGemini, imageGenModel } from '../utils/gemini';
 
 export type FilterType = 'none' | 'grayscale' | 'sepia' | 'blur';
 
-export const useImageGenerator = (apiKey: string) => {
+export const useImageGenerator = () => {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,16 +24,6 @@ export const useImageGenerator = (apiKey: string) => {
       console.error('Error saving image locally:', err);
       return null;
     }
-  };
-
-  const fetchWithRetry = async (url: string, options: any, retries = 3, delay = 2000): Promise<any> => {
-    for (let i = 0; i < retries; i++) {
-      const response = await fetch(url, options);
-      if (response.ok) return response;
-      if (response.status !== 503) throw new Error(`HTTP error! status: ${response.status}`);
-      await new Promise(res => setTimeout(res, delay)); // מחכה לפני ניסיון נוסף
-    }
-    throw new Error('Server unavailable (503) – נסיונות חוזרים נכשלו');
   };
 
   const generateImages = async (prompt: string, count: number = 3, imageUri: string | null = null) => {
@@ -71,6 +63,11 @@ export const useImageGenerator = (apiKey: string) => {
     }
 
     try {
+      initializeGemini();
+      if (!imageGenModel) {
+        throw new Error('Image generation model not initialized');
+      }
+
       const responses = await Promise.all(Array.from({ length: count }).map(async () => {
         const parts: any[] = [];
         if (imageUri && imageBase64 && imageMimeType) {
@@ -85,24 +82,18 @@ export const useImageGenerator = (apiKey: string) => {
           parts.push({ text: prompt });
         }
 
-        const res = await fetchWithRetry(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: parts }],
-              generationConfig: {
-                temperature: 0.4,
-                topK: 32,
-                topP: 1,
-                maxOutputTokens: 2048,
-                responseModalities: ["TEXT", "IMAGE"],
-              },
-            }),
-          }
-        );
-        return await res.json();
+        const result = await imageGenModel.generateContent({
+          contents: [{ role: 'user', parts: parts }],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 2048,
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        });
+        const response = await result.response;
+        return response.candidates?.[0]?.content;
       }));
 
       const newImages: string[] = [];
