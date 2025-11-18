@@ -77,6 +77,15 @@ export default function LoginScreen() {
         if (currentUser.idToken) {
           const { user, idToken } = currentUser;
           await AsyncStorage.setItem('token', idToken);
+          await AsyncStorage.setItem(
+            'user',
+            JSON.stringify({
+              provider: 'google',
+              name: user.name,
+              email: user.email,
+              photo: user.photo,  
+            })
+          );
           dispatch({ type: 'LOGIN', payload: { user, token: idToken } });
           navigation.navigate('RootTab');
         } else {

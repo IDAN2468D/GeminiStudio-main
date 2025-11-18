@@ -1,10 +1,8 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView,
   Platform, ActivityIndicator, Image, SafeAreaView
 } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
-import type { RootStackParamList } from '../navigation/AppNavigator';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { saveToHistory } from '../utils/storage';
@@ -12,6 +10,7 @@ import { GEMINI_API_KEY } from '@env';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useTheme } from '../context/ThemeContext';
 import { ToastAndroid } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Message {
   id: string;
@@ -23,7 +22,7 @@ interface Message {
 const ChatScreen = () => {
   const { isDarkMode } = useTheme();
   const { styles, colors } = getStyles(isDarkMode);
-
+  const [googleUser, setGoogleUser] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +41,17 @@ const ChatScreen = () => {
       }
     });
   };
+
+  useEffect(() => {
+      AsyncStorage.getItem('user').then((data) => {
+      if (data) {
+        const u = JSON.parse(data);
+        if (u.provider === 'google') {
+          setGoogleUser(u);
+        }
+      }
+    });
+  }, [])
 
   const sendMessage = async () => {
     if (!input.trim() && !selectedImage) return;
@@ -129,7 +139,7 @@ const ChatScreen = () => {
             )}
           </View>
         </View>
-        {!isGemini && <View style={styles.avatar}><Ionicons name="person" size={20} color={styles.userAvatarText.color} /></View>}
+        {!isGemini && <View ><Image source={{ uri: googleUser.photo }} style={styles.googleImage} /></View>}
       </View>
     );
   }, [styles]);
@@ -231,6 +241,14 @@ const getStyles = (isDarkMode: boolean) => {
     },
     headerButton: {
       padding: 8,
+    },
+    googleImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 25,
+    //marginRight: 15,
+    borderWidth: 1,
+    borderColor: '#EAECEF',
     },
     headerIcon: {
       color: colors.subtitle,
