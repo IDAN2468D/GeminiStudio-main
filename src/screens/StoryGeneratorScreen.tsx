@@ -51,7 +51,10 @@ export default function StoryGeneratorScreen() {
     } catch (e: any) {
       if (e.response && e.response.status === 429) {
         setResult('שגיאה: חרגת ממכסת הבקשות ל-API. נסה שוב בעוד מספר דקות.');
-      } else {
+      } else if (e.response && e.response.status === 503) {
+        setResult('שגיאה: שירות Gemini אינו זמין כרגע. אנא נסה שוב מאוחר יותר.');
+      }
+      else {
         setResult('שגיאה בשליחה ל-Gemini: ' + (e.response?.data ? JSON.stringify(e.response.data) : e.message));
       }
     }
