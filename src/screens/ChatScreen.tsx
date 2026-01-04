@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Image, SafeAreaView
+  Platform, ActivityIndicator, Image, SafeAreaView, ToastAndroid
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -9,7 +9,6 @@ import { saveToHistory } from '../utils/storage';
 import { GEMINI_API_KEY } from '@env';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useTheme } from '../context/ThemeContext';
-import { ToastAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Message {
@@ -29,6 +28,22 @@ const ChatScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const [selectedImage, setSelectedImage] = useState<{ uri: string; base64: string } | null>(null);
 
+  // טעינת פרטי המשתמש מהזיכרון
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const data = await AsyncStorage.getItem('user');
+        if (data) {
+          const u = JSON.parse(data);
+          setGoogleUser(u);
+        }
+      } catch (e) {
+        console.error('Failed to load user data', e);
+      }
+    };
+    loadUserData();
+  }, []);
+
   const selectImage = () => {
     launchImageLibrary({ mediaType: 'photo', includeBase64: true }, (response) => {
       if (response.didCancel || response.errorMessage) {
@@ -42,17 +57,6 @@ const ChatScreen = () => {
     });
   };
 
-  useEffect(() => {
-      AsyncStorage.getItem('user').then((data) => {
-      if (data) {
-        const u = JSON.parse(data);
-        if (u.provider === 'google') {
-          setGoogleUser(u);
-        }
-      }
-    });
-  }, [])
-
   const sendMessage = async () => {
     if (!input.trim() && !selectedImage) return;
 
@@ -62,6 +66,7 @@ const ChatScreen = () => {
       sender: 'user',
       imageUri: selectedImage?.uri,
     };
+
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setSelectedImage(null);
@@ -105,13 +110,11 @@ const ChatScreen = () => {
     }
   };
 
-  const showToast = (msg: string) => {
-    ToastAndroid.show(msg, ToastAndroid.SHORT);
-  };
-
   const handleCopy = (text: string) => {
     Clipboard.setString(text);
-    showToast('הועתק ללוח');
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('הועתק ללוח', ToastAndroid.SHORT);
+    }
   };
 
   const handleCopyConversation = () => {
@@ -119,19 +122,34 @@ const ChatScreen = () => {
       .map(m => `${m.sender === 'user' ? 'You' : 'Gemini'}: ${m.text}`)
       .join('\n\n');
     Clipboard.setString(conversationText);
-    showToast('השיחה הועתקה');
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('השיחה הועתקה', ToastAndroid.SHORT);
+    }
   };
 
   const renderItem = useCallback(({ item }: { item: Message }) => {
     const isGemini = item.sender === 'gemini';
     return (
       <View style={[styles.messageRow, isGemini ? styles.geminiRow : styles.userRow]}>
-        {isGemini && <View style={styles.avatar}><Ionicons name="sparkles" size={20} color="#fff" /></View>}
+        {/* אווטאר של ג'מיני */}
+        {isGemini && (
+          <View style={styles.avatar}>
+            <Ionicons name="sparkles" size={20} color="#fff" />
+          </View>
+        )}
+
+        {/* בועת הודעה */}
         <View style={[styles.bubble, isGemini ? styles.geminiBubble : styles.userBubble]}>
           {item.imageUri && <Image source={{ uri: item.imageUri }} style={styles.chatImage} />}
-          {item.text.trim().length > 0 && <Text style={[styles.messageText, isGemini ? styles.geminiText : styles.userText]} selectable>{item.text}</Text>}
+          {item.text.trim().length > 0 && (
+            <Text style={[styles.messageText, isGemini ? styles.geminiText : styles.userText]} selectable>
+              {item.text}
+            </Text>
+          )}
           <View style={styles.bubbleFooter}>
-            <Text style={styles.timeText}>{new Date(Number(item.id)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</Text>
+            <Text style={styles.timeText}>
+              {new Date(Number(item.id)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
             {isGemini && (
               <TouchableOpacity onPress={() => handleCopy(item.text)}>
                 <Ionicons name="copy-outline" size={18} color={styles.timeText.color} style={{ marginLeft: 8 }} />
@@ -139,10 +157,22 @@ const ChatScreen = () => {
             )}
           </View>
         </View>
-        {!isGemini && <View ><Image source={{ uri: googleUser.photo }} style={styles.googleImage} /></View>}
+
+        {/* אווטאר משתמש - תיקון השגיאה כאן */}
+        {!isGemini && (
+          <View>
+            {googleUser?.photo ? (
+              <Image source={{ uri: googleUser.photo }} style={styles.googleImage} />
+            ) : (
+              <View style={[styles.googleImage, { backgroundColor: '#ccc', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="person" size={20} color="#fff" />
+              </View>
+            )}
+          </View>
+        )}
       </View>
     );
-  }, [styles]);
+  }, [styles, googleUser]); // הוספת googleUser כאן חשובה מאוד
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,7 +187,12 @@ const ChatScreen = () => {
           <Ionicons name="trash-outline" size={24} color={styles.headerIcon.color} />
         </TouchableOpacity>
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -168,7 +203,7 @@ const ChatScreen = () => {
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
 
-        {loading && <ActivityIndicator style={styles.typingIndicator} color={styles.geminiText.color} />}
+        {loading && <ActivityIndicator style={styles.typingIndicator} color={colors.primary} />}
 
         <View style={styles.inputContainer}>
           {selectedImage && (
@@ -212,7 +247,7 @@ const getStyles = (isDarkMode: boolean) => {
     text: isDarkMode ? '#E0E0E0' : '#222222',
     subtitle: isDarkMode ? '#A0A0A0' : '#666666',
     primary: '#3B82F6',
-    userBubble: isDarkMode ? '#3B82F6' : '#3B82F6',
+    userBubble: '#3B82F6',
     geminiBubble: isDarkMode ? '#333333' : '#E5E7EB',
     input: isDarkMode ? '#252525' : '#F0F0F0',
   };
@@ -224,120 +259,73 @@ const getStyles = (isDarkMode: boolean) => {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 15,
-      paddingTop: Platform.OS === 'android' ? 24 : 16,
+      paddingTop: 22,
       paddingBottom: 12,
       backgroundColor: colors.card,
       borderBottomWidth: 1,
       borderBottomColor: isDarkMode ? '#2a2a2a' : '#e5e7eb',
     },
-    headerTitleContainer: {
-      flex: 1,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: colors.text,
-    },
-    headerButton: {
-      padding: 8,
-    },
+    headerTitleContainer: { flex: 1, alignItems: 'center' },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text },
+    headerButton: { padding: 8 },
+    headerIcon: { color: colors.subtitle },
     googleImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 25,
-    //marginRight: 15,
-    borderWidth: 1,
-    borderColor: '#EAECEF',
-    },
-    headerIcon: {
-      color: colors.subtitle,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: '#EAECEF',
     },
     list: { paddingHorizontal: 10, paddingTop: 16, paddingBottom: 8 },
-    messageRow: { flexDirection: 'row', marginVertical: 10, alignItems: 'flex-end', gap: 8 },
+    messageRow: { flexDirection: 'row', marginVertical: 6, alignItems: 'flex-end', gap: 8 },
     userRow: { justifyContent: 'flex-end' },
     geminiRow: { justifyContent: 'flex-start' },
     avatar: {
-      width: 40, height: 40, borderRadius: 20,
+      width: 36, height: 36, borderRadius: 18,
       justifyContent: 'center', alignItems: 'center',
       backgroundColor: isDarkMode ? colors.geminiBubble : colors.primary,
     },
-    userAvatarText: {
-      color: isDarkMode ? colors.primary : '#FFFFFF',
-    },
-    bubble: {
-      maxWidth: '75%',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-    },
-    userBubble: {
-      backgroundColor: colors.userBubble,
-      borderBottomRightRadius: 5,
-    },
-    geminiBubble: {
-      backgroundColor: colors.geminiBubble,
-      borderBottomLeftRadius: 5,
-    },
-    messageText: { fontSize: 16, lineHeight: 24, writingDirection: 'rtl' },
+    bubble: { maxWidth: '75%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
+    userBubble: { backgroundColor: colors.userBubble, borderBottomRightRadius: 4 },
+    geminiBubble: { backgroundColor: colors.geminiBubble, borderBottomLeftRadius: 4 },
+    messageText: { fontSize: 16, lineHeight: 22, textAlign: 'right' },
     userText: { color: '#FFFFFF' },
     geminiText: { color: colors.text },
-    bubbleFooter: { flexDirection: 'row-reverse', alignItems: 'center', marginTop: 8 },
-    timeText: { fontSize: 12, color: colors.subtitle },
+    bubbleFooter: { flexDirection: 'row-reverse', alignItems: 'center', marginTop: 4 },
+    timeText: { fontSize: 10, color: colors.subtitle },
     chatImage: { width: 200, height: 200, borderRadius: 12, marginBottom: 8 },
     typingIndicator: { marginVertical: 10 },
     inputContainer: {
       backgroundColor: colors.card,
       borderTopWidth: 1,
       borderTopColor: isDarkMode ? '#2a2a2a' : '#e5e7eb',
-      paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     },
-    inputRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 8,
-    },
+    inputRow: { flexDirection: 'row', alignItems: 'center', padding: 8 },
     input: {
       flex: 1,
       backgroundColor: colors.input,
       borderRadius: 24,
       paddingHorizontal: 18,
-      paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+      paddingVertical: Platform.OS === 'ios' ? 10 : 6,
       fontSize: 16,
       color: colors.text,
       maxHeight: 100,
       textAlign: 'right',
     },
-    iconButton: {
-      padding: 8,
-      color: colors.subtitle,
-    },
+    iconButton: { padding: 8, color: colors.subtitle },
     sendButton: {
       backgroundColor: colors.primary,
       borderRadius: 24,
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       justifyContent: 'center',
       alignItems: 'center',
       marginLeft: 8,
     },
-    sendButtonDisabled: { backgroundColor: isDarkMode ? '#555' : '#A5B4FC' },
-    imagePreviewContainer: {
-      padding: 8,
-      alignItems: 'flex-start',
-    },
-    imagePreview: {
-      width: 70,
-      height: 70,
-      borderRadius: 10,
-    },
-    removeImageButton: {
-      position: 'absolute',
-      top: 0,
-      right: -10,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      borderRadius: 12,
-    },
+    sendButtonDisabled: { backgroundColor: isDarkMode ? '#333' : '#A5B4FC' },
+    imagePreviewContainer: { padding: 8, position: 'relative' },
+    imagePreview: { width: 60, height: 60, borderRadius: 8 },
+    removeImageButton: { position: 'absolute', top: 4, left: 54 },
   });
 
   return { styles, colors };
